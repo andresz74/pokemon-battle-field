@@ -1,38 +1,41 @@
 .battle-field {
-    align-items: center;
-    display: flex;
-    justify-content: space-around;
-    padding: 20px;
-    background-color: #f5f5f5;
-    /* min-height: 100vh; */
-  }
-  
-  .pokemon-card {
-    align-items: center;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    display: flex;
-    flex-direction: column;
-    background-color: #fff;
-    box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
-    height: 300px;
-    justify-content: center;
-    padding: 20px;
-    width: 300px;
-    text-align: center;
-  }
-  
-  .pokemon-card img {
-    max-width: 100%;
-  }
-  
-  .pokemon-card h2 {
-    font-size: 24px;
-    margin: 0;
-  }
-  
-  .pokemon-card p {
-    margin: 0;
-    font-size: 18px;
-  }
-  
+  align-items: center;
+  display: flex;
+  justify-content: space-around;
+  padding: 20px;
+  background-color: #f5f5f5;
+  /* min-height: 100vh; */
+}
+
+.pokemon-card {
+  align-items: center;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+  height: 300px;
+  justify-content: center;
+  padding: 20px;
+  width: 300px;
+  text-align: center;
+}
+
+.pokemon-card.active {
+  border-color: #ff0000;
+}
+
+.pokemon-card img {
+  max-width: 100%;
+}
+
+.pokemon-card h2 {
+  font-size: 24px;
+  margin: 0;
+}
+
+.pokemon-card p {
+  margin: 0;
+  font-size: 18px;
+}

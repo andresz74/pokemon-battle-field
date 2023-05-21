@@ -8,9 +8,11 @@ import { Pokemon, PokemonMove } from "../models";
 const BattleField: React.FC = () => {
   const [pokemon1, setPokemon1] = useState<Pokemon | null>(null);
   const [pokemon2, setPokemon2] = useState<Pokemon | null>(null);
+  const [pokemon1Hp, setPokemon1Hp] = useState<number | null>(null);
   const [pokemon1CurrentHp, setPokemon1CurrentHp] = useState<number | null>(
     null
   );
+  const [pokemon2Hp, setPokemon2Hp] = useState<number | null>(null);
   const [pokemon2CurrentHp, setPokemon2CurrentHp] = useState<number | null>(
     null
   );
@@ -21,6 +23,8 @@ const BattleField: React.FC = () => {
   const [pokemon2Moves, setPokemon2Moves] = useState<PokemonMove[]>([]);
   const [selectedMove1, setSelectedMove1] = useState<PokemonMove | null>(null);
   const [selectedMove2, setSelectedMove2] = useState<PokemonMove | null>(null);
+  const [currentTurn, setCurrentTurn] = useState<string>("pokemon1");
+
   const calculateDamage = (move: PokemonMove) => {
     // For simplicity, use the first version_group_detail's level_learned_at
     const level = move.version_group_details[0]?.level_learned_at;
@@ -76,14 +80,17 @@ const BattleField: React.FC = () => {
   };
 
   const fetchPokemonData = async () => {
-    const pokemon1Name = '1';
-    const pokemon2Name = '2';
+    const pokemon1Name = "1";
+    const pokemon2Name = "2";
     try {
       const res1 = await axios.get(
         `https://pokeapi.co/api/v2/pokemon/${pokemon1Name}`
       );
       const data1: Pokemon = res1.data;
       setPokemon1(data1);
+      setPokemon1Hp(
+        data1.stats.find((stat) => stat.stat.name === "hp")?.base_stat || null
+      );
       setPokemon1CurrentHp(
         data1.stats.find((stat) => stat.stat.name === "hp")?.base_stat || null
       );
@@ -94,6 +101,9 @@ const BattleField: React.FC = () => {
       );
       const data2: Pokemon = res2.data;
       setPokemon2(data2);
+      setPokemon2Hp(
+        data2.stats.find((stat) => stat.stat.name === "hp")?.base_stat || null
+      );
       setPokemon2CurrentHp(
         data2.stats.find((stat) => stat.stat.name === "hp")?.base_stat || null
       );
@@ -172,18 +182,14 @@ const BattleField: React.FC = () => {
       <main>
         <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
           <div className="battle-field">
-            <PokemonCard pokemon={pokemon1} currentHp={pokemon1CurrentHp} />
-            <select
-              onChange={(e) =>
-                setSelectedMove1(pokemon1Moves[parseInt(e.target.value)])
-              }
-            >
-              {pokemon1Moves.map((move, index) => (
-                <option key={index} value={index}>
-                  {move.move.name}
-                </option>
-              ))}
-            </select>
+            <PokemonCard
+              pokemon={pokemon1}
+              hp={pokemon1Hp}
+              currentHp={pokemon1CurrentHp}
+              moves={pokemon1Moves}
+              setSelectedMove={setSelectedMove1}
+              isTurn={currentTurn === 'pokemon1'} 
+            />
 
             {gameOver ? (
               <h2>
@@ -202,19 +208,15 @@ const BattleField: React.FC = () => {
                 Fight!
               </button>
             )}
-            <select
-              onChange={(e) =>
-                setSelectedMove2(pokemon2Moves[parseInt(e.target.value)])
-              }
-            >
-              {pokemon2Moves.map((move, index) => (
-                <option key={index} value={index}>
-                  {move.move.name}
-                </option>
-              ))}
-            </select>
 
-            <PokemonCard pokemon={pokemon2} currentHp={pokemon2CurrentHp} />
+            <PokemonCard
+              pokemon={pokemon2}
+              hp={pokemon2Hp}
+              currentHp={pokemon2CurrentHp}
+              moves={pokemon2Moves}
+              setSelectedMove={setSelectedMove2}
+              isTurn={currentTurn === 'pokemon2'} 
+            />
           </div>
         </div>
       </main>
