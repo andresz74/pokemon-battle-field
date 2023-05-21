@@ -77,6 +77,12 @@ const BattleField: React.FC = () => {
     } else {
       setPokemon1Turn(!pokemon1Turn);
     }
+
+    if (currentTurn === "pokemon1") {
+      setCurrentTurn("pokemon2");
+    } else {
+      setCurrentTurn("pokemon1");
+    }
   };
 
   const fetchPokemonData = async () => {
@@ -188,7 +194,7 @@ const BattleField: React.FC = () => {
               currentHp={pokemon1CurrentHp}
               moves={pokemon1Moves}
               setSelectedMove={setSelectedMove1}
-              isTurn={currentTurn === 'pokemon1'} 
+              isTurn={currentTurn === "pokemon1"}
             />
 
             {gameOver ? (
@@ -215,7 +221,7 @@ const BattleField: React.FC = () => {
               currentHp={pokemon2CurrentHp}
               moves={pokemon2Moves}
               setSelectedMove={setSelectedMove2}
-              isTurn={currentTurn === 'pokemon2'} 
+              isTurn={currentTurn === "pokemon2"}
             />
           </div>
         </div>

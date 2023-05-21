@@ -37,15 +37,19 @@ const PokemonCard: React.FC<PokemonCardProps> = ({
     }
   };
   return (
-    <div className={`pokemon-card ${isTurn ? 'active' : ''}`}>
-      <Image src={imageSrc} alt={pokemon.name} width={96} height={96} />
-      {/* <img src={imageSrc} alt={pokemon.name} width={96} height={96} /> */}
+    <div className={`pokemon-card ${isTurn ? "active" : ""}`}>
+      {/* <Image src={imageSrc} alt={pokemon.name} width={96} height={96} /> */}
+      <img src={imageSrc} alt={pokemon.name} width={96} height={96} />
       <h2>{pokemon.name}</h2>
       <p>
         HP: {currentHp} / {hp}
       </p>
-      <select onChange={handleMoveChange}>
-        <option>Select your move</option>
+      <select
+        // value={selectedMoveIndex}
+        onChange={handleMoveChange}
+        disabled={!isTurn}
+      >
+        <option value="">Select your move</option>
         {randomMoves.map((move, index) => (
           <option key={index} value={index}>
             {move.move.name}
