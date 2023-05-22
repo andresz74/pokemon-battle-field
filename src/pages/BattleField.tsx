@@ -236,13 +236,19 @@ const BattleField: React.FC = () => {
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">
             Battle Field
           </h1>
+          <button
+            type="button"
+            onClick={handleRestart}
+            className="lg:my-4 group font-medium tracking-wide select-none text-base relative inline-flex items-center justify-center cursor-pointer h-12 border-2 border-solid py-0 px-3 rounded-md overflow-hidden z-10 outline-0 bg-blue-500 text-white border-blue-500"
+          >
+            Restart Battle
+          </button>
         </div>
       </header>
       <main>
         <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
           {battleStarted ? (
             <div className="battle-field">
-              <button onClick={handleRestart}>Restart Battle</button>
               <PokemonCard
                 pokemon={pokemon1}
                 hp={pokemon1Hp}
