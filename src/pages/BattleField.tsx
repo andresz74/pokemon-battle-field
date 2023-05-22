@@ -24,6 +24,7 @@ const BattleField: React.FC = () => {
   const [selectedMove1, setSelectedMove1] = useState<PokemonMove | null>(null);
   const [selectedMove2, setSelectedMove2] = useState<PokemonMove | null>(null);
   const [currentTurn, setCurrentTurn] = useState<string>("pokemon1");
+  const [battleStarted, setBattleStarted] = useState<boolean>(false);
 
   const calculateDamage = (move: PokemonMove) => {
     // For simplicity, use the first version_group_detail's level_learned_at
@@ -85,6 +86,36 @@ const BattleField: React.FC = () => {
     }
   };
 
+  const handleRestart = async () => {
+    // reset the state
+    if (pokemon1) {
+      let pokemon1Hp = pokemon1.stats.filter(
+        (stat) => stat.stat.name === "hp"
+      )[0].base_stat;
+      setPokemon1CurrentHp(pokemon1Hp);
+    }
+
+    if (pokemon2) {
+      let pokemon2Hp = pokemon2.stats.filter(
+        (stat) => stat.stat.name === "hp"
+      )[0].base_stat;
+      setPokemon1CurrentHp(pokemon2Hp);
+    }
+
+    setBattleStarted(false);
+    setGameOver(false);
+    setCurrentTurn("pokemon1");
+
+    // fetch new random moves
+    const newPokemon1Moves = await fetchPokemonMoves(pokemon1);
+    const newPokemon2Moves = await fetchPokemonMoves(pokemon2);
+
+    setPokemon1Moves(newPokemon1Moves);
+    setPokemon2Moves(newPokemon2Moves);
+    setSelectedMove1(newPokemon1Moves[0]);
+    setSelectedMove2(newPokemon2Moves[0]);
+  };
+
   const fetchPokemonData = async () => {
     const pokemon1Name = "1";
     const pokemon2Name = "2";
@@ -118,6 +149,28 @@ const BattleField: React.FC = () => {
       console.error("Failed to fetch Pokemon data: ", error);
     }
   };
+
+  async function fetchPokemonMoves(
+    pokemon: Pokemon | null
+  ): Promise<PokemonMove[]> {
+    try {
+      const response = await fetch(
+        `https://pokeapi.co/api/v2/pokemon/${pokemon.id}`
+      );
+      const data = await response.json();
+
+      // shuffle the moves array
+      const shuffled = data.moves.sort(() => 0.5 - Math.random());
+
+      // Get first 5 elements
+      const selected = shuffled.slice(0, 5);
+
+      return selected;
+    } catch (error) {
+      console.error("Failed to fetch Pokemon moves: ", error);
+      return [];
+    }
+  }
 
   useEffect(() => {
     fetchPokemonData();
@@ -187,43 +240,49 @@ const BattleField: React.FC = () => {
       </header>
       <main>
         <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
-          <div className="battle-field">
-            <PokemonCard
-              pokemon={pokemon1}
-              hp={pokemon1Hp}
-              currentHp={pokemon1CurrentHp}
-              moves={pokemon1Moves}
-              setSelectedMove={setSelectedMove1}
-              isTurn={currentTurn === "pokemon1"}
-            />
+          {battleStarted ? (
+            <div className="battle-field">
+              <button onClick={handleRestart}>Restart Battle</button>
+              <PokemonCard
+                pokemon={pokemon1}
+                hp={pokemon1Hp}
+                currentHp={pokemon1CurrentHp}
+                moves={pokemon1Moves}
+                setSelectedMove={setSelectedMove1}
+                isTurn={currentTurn === "pokemon1"}
+              />
 
-            {gameOver ? (
-              <h2>
-                Game Over!{" "}
-                {pokemon1CurrentHp > pokemon2CurrentHp
-                  ? pokemon1.name
-                  : pokemon2.name}{" "}
-                wins!
-              </h2>
-            ) : (
-              <button
-                type="button"
-                onClick={handleTurn}
-                className="lg:mx-4 group font-medium tracking-wide select-none text-base relative inline-flex items-center justify-center cursor-pointer h-12 border-2 border-solid py-0 px-6 rounded-md overflow-hidden z-10 outline-0 bg-blue-500 text-white border-blue-500"
-              >
-                Fight!
-              </button>
-            )}
+              {gameOver ? (
+                <h2>
+                  Game Over!{" "}
+                  {pokemon1CurrentHp > pokemon2CurrentHp
+                    ? pokemon1.name
+                    : pokemon2.name}{" "}
+                  wins!
+                </h2>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleTurn}
+                  className="lg:mx-4 group font-medium tracking-wide select-none text-base relative inline-flex items-center justify-center cursor-pointer h-12 border-2 border-solid py-0 px-6 rounded-md overflow-hidden z-10 outline-0 bg-blue-500 text-white border-blue-500"
+                >
+                  Fight!
+                </button>
+              )}
 
-            <PokemonCard
-              pokemon={pokemon2}
-              hp={pokemon2Hp}
-              currentHp={pokemon2CurrentHp}
-              moves={pokemon2Moves}
-              setSelectedMove={setSelectedMove2}
-              isTurn={currentTurn === "pokemon2"}
-            />
-          </div>
+              <PokemonCard
+                pokemon={pokemon2}
+                hp={pokemon2Hp}
+                currentHp={pokemon2CurrentHp}
+                moves={pokemon2Moves}
+                setSelectedMove={setSelectedMove2}
+                isTurn={currentTurn === "pokemon2"}
+              />
+            </div>
+          ) : (
+            // If the battle hasn't started, render a "Start Battle" button
+            <button onClick={() => setBattleStarted(true)}>Start Battle</button>
+          )}
         </div>
       </main>
     </div>
