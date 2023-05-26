@@ -79,14 +79,18 @@ const BattleField: React.FC = () => {
 
       const damage = calculateDamage(selectedMove1);
       const newHp =
-      player2PokemonCurrentHp - damage <= 0 ? 0 : player2PokemonCurrentHp - damage;
+        player2PokemonCurrentHp - damage <= 0
+          ? 0
+          : player2PokemonCurrentHp - damage;
       setPlayer2PokemonCurrentHp(newHp);
     } else {
       if (!selectedMove2 || player1PokemonCurrentHp === null) return;
 
       const damage = calculateDamage(selectedMove2);
       const newHp =
-      player1PokemonCurrentHp - damage <= 0 ? 0 : player1PokemonCurrentHp - damage;
+        player1PokemonCurrentHp - damage <= 0
+          ? 0
+          : player1PokemonCurrentHp - damage;
       setPlayer1PokemonCurrentHp(newHp);
     }
 
@@ -110,6 +114,7 @@ const BattleField: React.FC = () => {
         (stat) => stat.stat.name === "hp"
       )[0].base_stat;
       setPlayer1PokemonCurrentHp(pokemon1Hp);
+      setSelectedMove1(null);
     }
 
     if (player2Pokemon) {
@@ -117,7 +122,29 @@ const BattleField: React.FC = () => {
         (stat) => stat.stat.name === "hp"
       )[0].base_stat;
       setPlayer2PokemonCurrentHp(pokemon2Hp);
+      setSelectedMove2(null);
     }
+
+    // setBattleStarted(false);
+    setGameOver(false);
+    setCurrentTurn("pokemon1");
+  };
+
+  const handleNewBattle = () => {
+    setPlayer1Pokemon(null);
+    setSelectedPokemonUrl1(null);
+    setPlayer1PokemonMoves([]);
+    setPokemon1Hp(null);
+    setPlayer1PokemonCurrentHp(null);
+    setSelectedMove1(null);
+    setPokemon1Turn(true);
+
+    setPlayer2Pokemon(null);
+    setSelectedPokemonUrl2(null);
+    setPlayer2PokemonMoves([]);
+    setPokemon2Hp(null);
+    setPlayer2PokemonCurrentHp(null);
+    setSelectedMove2(null);
 
     setBattleStarted(false);
     setGameOver(false);
@@ -247,6 +274,13 @@ const BattleField: React.FC = () => {
           </h1>
           <button
             type="button"
+            onClick={handleNewBattle}
+            className="lg:my-4 group font-medium tracking-wide select-none text-base relative inline-flex items-center justify-center cursor-pointer h-12 border-2 border-solid py-0 px-3 rounded-md overflow-hidden z-10 outline-0 bg-blue-500 text-white border-blue-500"
+          >
+            New Battle
+          </button>
+          <button
+            type="button"
             onClick={handleRestart}
             className="lg:my-4 group font-medium tracking-wide select-none text-base relative inline-flex items-center justify-center cursor-pointer h-12 border-2 border-solid py-0 px-3 rounded-md overflow-hidden z-10 outline-0 bg-blue-500 text-white border-blue-500"
           >
@@ -302,13 +336,15 @@ const BattleField: React.FC = () => {
               />
             </div>
           ) : (
-            // If the battle hasn't started, render a "Start Battle" button
-            <button
-              onClick={() => setBattleStarted(true)}
-              className="lg:my-4 group font-medium tracking-wide select-none text-base relative inline-flex items-center justify-center cursor-pointer h-12 border-2 border-solid py-0 px-3 rounded-md overflow-hidden z-10 outline-0 bg-blue-500 text-white border-blue-500"
-            >
-              Start Battle
-            </button>
+            (!player1Pokemon || !player2Pokemon) && (
+              // If the battle hasn't started, render a "Start Battle" button
+              <button
+                onClick={() => setBattleStarted(true)}
+                className="lg:my-4 group font-medium tracking-wide select-none text-base relative inline-flex items-center justify-center cursor-pointer h-12 border-2 border-solid py-0 px-3 rounded-md overflow-hidden z-10 outline-0 bg-blue-500 text-white border-blue-500"
+              >
+                Start Battle
+              </button>
+            )
           )}
         </div>
       </main>
