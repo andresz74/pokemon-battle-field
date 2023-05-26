@@ -9,3 +9,4 @@ export * from "./Location";
 export * from "./Machine";
 export * from "./Moves";
 export * from "./Pokemon";
+export * from "./_Local";

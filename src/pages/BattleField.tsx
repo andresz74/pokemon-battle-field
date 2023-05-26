@@ -1,26 +1,43 @@
 import React, { Fragment, useState, useEffect } from "react";
+import _ from "lodash";
 import { Disclosure, Menu, Transition } from "@headlessui/react";
 import { Bars3Icon, BellIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import axios from "axios";
-import PokemonCard from "./PokemonCard"; // make sure to import the PokemonCard component
-import { Pokemon, PokemonMove } from "../models";
+import PokemonCard from "./PokemonCard";
+import { getPokemon, getPokemonList } from "../pages/api";
+import { Pokemon, PokemonMove, PokemonListItem } from "../models";
+
+function pickRandom<T>(arr: T[], count: number): T[] {
+  return _.sampleSize(arr, count);
+}
 
 const BattleField: React.FC = () => {
-  const [pokemon1, setPokemon1] = useState<Pokemon | null>(null);
-  const [pokemon2, setPokemon2] = useState<Pokemon | null>(null);
+  const [pokemonList, setPokemonList] = useState<PokemonListItem[]>([]);
+  const [player1Pokemon, setPlayer1Pokemon] = useState<Pokemon | null>(null);
+  const [player2Pokemon, setPlayer2Pokemon] = useState<Pokemon | null>(null);
+  const [selectedPokemonUrl1, setSelectedPokemonUrl1] = useState<string | null>(
+    null
+  );
+  const [selectedPokemonUrl2, setSelectedPokemonUrl2] = useState<string | null>(
+    null
+  );
+  const [player1PokemonMoves, setPlayer1PokemonMoves] = useState<PokemonMove[]>(
+    []
+  );
+  const [player2PokemonMoves, setPlayer2PokemonMoves] = useState<PokemonMove[]>(
+    []
+  );
   const [pokemon1Hp, setPokemon1Hp] = useState<number | null>(null);
-  const [pokemon1CurrentHp, setPokemon1CurrentHp] = useState<number | null>(
-    null
-  );
+  const [player1PokemonCurrentHp, setPlayer1PokemonCurrentHp] = useState<
+    number | null
+  >(null);
   const [pokemon2Hp, setPokemon2Hp] = useState<number | null>(null);
-  const [pokemon2CurrentHp, setPokemon2CurrentHp] = useState<number | null>(
-    null
-  );
+  const [player2PokemonCurrentHp, setPlayer2PokemonCurrentHp] = useState<
+    number | null
+  >(null);
   const [error, setError] = useState<boolean | null>(null);
   const [pokemon1Turn, setPokemon1Turn] = useState<boolean>(true);
   const [gameOver, setGameOver] = useState<boolean>(false);
-  const [pokemon1Moves, setPokemon1Moves] = useState<PokemonMove[]>([]);
-  const [pokemon2Moves, setPokemon2Moves] = useState<PokemonMove[]>([]);
   const [selectedMove1, setSelectedMove1] = useState<PokemonMove | null>(null);
   const [selectedMove2, setSelectedMove2] = useState<PokemonMove | null>(null);
   const [currentTurn, setCurrentTurn] = useState<string>("pokemon1");
@@ -58,22 +75,22 @@ const BattleField: React.FC = () => {
 
   const handleTurn = () => {
     if (pokemon1Turn) {
-      if (!selectedMove1 || pokemon2CurrentHp === null) return;
+      if (!selectedMove1 || player2PokemonCurrentHp === null) return;
 
       const damage = calculateDamage(selectedMove1);
       const newHp =
-        pokemon2CurrentHp - damage <= 0 ? 0 : pokemon2CurrentHp - damage;
-      setPokemon2CurrentHp(newHp);
+      player2PokemonCurrentHp - damage <= 0 ? 0 : player2PokemonCurrentHp - damage;
+      setPlayer2PokemonCurrentHp(newHp);
     } else {
-      if (!selectedMove2 || pokemon1CurrentHp === null) return;
+      if (!selectedMove2 || player1PokemonCurrentHp === null) return;
 
       const damage = calculateDamage(selectedMove2);
       const newHp =
-        pokemon1CurrentHp - damage <= 0 ? 0 : pokemon1CurrentHp - damage;
-      setPokemon1CurrentHp(newHp);
+      player1PokemonCurrentHp - damage <= 0 ? 0 : player1PokemonCurrentHp - damage;
+      setPlayer1PokemonCurrentHp(newHp);
     }
 
-    if (pokemon1CurrentHp === 0 || pokemon2CurrentHp === 0) {
+    if (player1PokemonCurrentHp === 0 || player2PokemonCurrentHp === 0) {
       setGameOver(true);
     } else {
       setPokemon1Turn(!pokemon1Turn);
@@ -88,107 +105,99 @@ const BattleField: React.FC = () => {
 
   const handleRestart = async () => {
     // reset the state
-    if (pokemon1) {
-      let pokemon1Hp = pokemon1.stats.filter(
+    if (player1Pokemon) {
+      let pokemon1Hp = player1Pokemon.stats.filter(
         (stat) => stat.stat.name === "hp"
       )[0].base_stat;
-      setPokemon1CurrentHp(pokemon1Hp);
+      setPlayer1PokemonCurrentHp(pokemon1Hp);
     }
 
-    if (pokemon2) {
-      let pokemon2Hp = pokemon2.stats.filter(
+    if (player2Pokemon) {
+      let pokemon2Hp = player2Pokemon.stats.filter(
         (stat) => stat.stat.name === "hp"
       )[0].base_stat;
-      setPokemon1CurrentHp(pokemon2Hp);
+      setPlayer2PokemonCurrentHp(pokemon2Hp);
     }
 
     setBattleStarted(false);
     setGameOver(false);
     setCurrentTurn("pokemon1");
-
-    // fetch new random moves
-    const newPokemon1Moves = await fetchPokemonMoves(pokemon1);
-    const newPokemon2Moves = await fetchPokemonMoves(pokemon2);
-
-    setPokemon1Moves(newPokemon1Moves);
-    setPokemon2Moves(newPokemon2Moves);
-    setSelectedMove1(newPokemon1Moves[0]);
-    setSelectedMove2(newPokemon2Moves[0]);
   };
 
-  const fetchPokemonData = async () => {
-    const pokemon1Name = "1";
-    const pokemon2Name = "2";
-    try {
-      const res1 = await axios.get(
-        `https://pokeapi.co/api/v2/pokemon/${pokemon1Name}`
-      );
-      const data1: Pokemon = res1.data;
-      setPokemon1(data1);
-      setPokemon1Hp(
-        data1.stats.find((stat) => stat.stat.name === "hp")?.base_stat || null
-      );
-      setPokemon1CurrentHp(
-        data1.stats.find((stat) => stat.stat.name === "hp")?.base_stat || null
-      );
-      setPokemon1Moves(data1.moves);
-
-      const res2 = await axios.get(
-        `https://pokeapi.co/api/v2/pokemon/${pokemon2Name}`
-      );
-      const data2: Pokemon = res2.data;
-      setPokemon2(data2);
-      setPokemon2Hp(
-        data2.stats.find((stat) => stat.stat.name === "hp")?.base_stat || null
-      );
-      setPokemon2CurrentHp(
-        data2.stats.find((stat) => stat.stat.name === "hp")?.base_stat || null
-      );
-      setPokemon2Moves(data2.moves);
-    } catch (error) {
-      console.error("Failed to fetch Pokemon data: ", error);
-    }
-  };
-
-  async function fetchPokemonMoves(
-    pokemon: Pokemon | null
-  ): Promise<PokemonMove[]> {
-    try {
-      const response = await fetch(
-        `https://pokeapi.co/api/v2/pokemon/${pokemon.id}`
-      );
-      const data = await response.json();
-
-      // shuffle the moves array
-      const shuffled = data.moves.sort(() => 0.5 - Math.random());
-
-      // Get first 5 elements
-      const selected = shuffled.slice(0, 5);
-
-      return selected;
-    } catch (error) {
-      console.error("Failed to fetch Pokemon moves: ", error);
-      return [];
-    }
-  }
-
+  // Fetch the list of Pokemon
   useEffect(() => {
-    fetchPokemonData();
+    const fetchPokemonList = async () => {
+      try {
+        const list = await getPokemonList();
+        setPokemonList(list);
+      } catch (err) {
+        console.error("Failed to fetch Pokemon list: ", error);
+      }
+    };
+
+    fetchPokemonList();
   }, []);
+
+  // Fetch Pokemon data
+  useEffect(() => {
+    const fetchPokemon = async () => {
+      if (selectedPokemonUrl1) {
+        const pokemon: Pokemon = await getPokemon(selectedPokemonUrl1);
+        setPlayer1Pokemon(pokemon); // Set player 1's Pokemon
+        const randomMoves = pickRandom(pokemon.moves, 5);
+        setPlayer1PokemonMoves(randomMoves);
+        // setSelectedMove1(randomMoves[0] || null);
+        if (pokemon) {
+          let pokemon1Hp = pokemon.stats.filter(
+            (stat) => stat.stat.name === "hp"
+          )[0].base_stat;
+          setPokemon1Hp(pokemon1Hp);
+          setPlayer1PokemonCurrentHp(pokemon1Hp);
+        }
+      }
+
+      if (selectedPokemonUrl2) {
+        const pokemon = await getPokemon(selectedPokemonUrl2);
+        setPlayer2Pokemon(pokemon); // Set player 2's Pokemon
+        const randomMoves = pickRandom(pokemon.moves, 5);
+        setPlayer2PokemonMoves(randomMoves);
+        // setSelectedMove2(randomMoves[0] || null);
+        if (pokemon) {
+          let pokemon2Hp = pokemon.stats.filter(
+            (stat) => stat.stat.name === "hp"
+          )[0].base_stat;
+          setPokemon2Hp(pokemon2Hp);
+          setPlayer2PokemonCurrentHp(pokemon2Hp);
+        }
+      }
+    };
+
+    fetchPokemon();
+  }, [selectedPokemonUrl1, selectedPokemonUrl2]);
+
+  const handlePokemonChange1 = (url: string) => {
+    setSelectedPokemonUrl1(url);
+    setSelectedMove1(null);
+  };
+
+  const handlePokemonChange2 = (url: string) => {
+    setSelectedPokemonUrl2(url);
+    setSelectedMove2(null);
+  };
 
   // Display error message if there's an error
   if (error) {
     return <div>Error: {error}</div>;
   }
 
-  if (
-    !pokemon1 ||
-    !pokemon2 ||
-    pokemon1CurrentHp === null ||
-    pokemon2CurrentHp === null
-  ) {
-    return <div>Loading...</div>;
-  }
+  // if (
+  //   !player1Pokemon ||
+  //   !player2Pokemon ||
+  //   player1PokemonCurrentHp === null ||
+  //   pokemon2CurrentHp === null
+  // ) {
+  //   return <div>Loading...</div>;
+  // }
 
   return (
     <div className="min-h-full">
@@ -250,44 +259,56 @@ const BattleField: React.FC = () => {
           {battleStarted ? (
             <div className="battle-field">
               <PokemonCard
-                pokemon={pokemon1}
+                pokemon={player1Pokemon}
                 hp={pokemon1Hp}
-                currentHp={pokemon1CurrentHp}
-                moves={pokemon1Moves}
+                currentHp={player1PokemonCurrentHp}
+                moves={player1PokemonMoves}
                 setSelectedMove={setSelectedMove1}
+                setSelectedPokemon={handlePokemonChange1}
                 isTurn={currentTurn === "pokemon1"}
+                pokemonList={pokemonList}
               />
 
               {gameOver ? (
                 <h2>
                   Game Over!{" "}
-                  {pokemon1CurrentHp > pokemon2CurrentHp
-                    ? pokemon1.name
-                    : pokemon2.name}{" "}
+                  {player1PokemonCurrentHp === null ||
+                  player2PokemonCurrentHp === null
+                    ? null
+                    : player1PokemonCurrentHp > player2PokemonCurrentHp
+                    ? player1Pokemon?.name
+                    : player2Pokemon?.name}{" "}
                   wins!
                 </h2>
               ) : (
                 <button
                   type="button"
                   onClick={handleTurn}
-                  className="lg:mx-4 group font-medium tracking-wide select-none text-base relative inline-flex items-center justify-center cursor-pointer h-12 border-2 border-solid py-0 px-6 rounded-md overflow-hidden z-10 outline-0 bg-blue-500 text-white border-blue-500"
+                  className="lg:my-4 group font-medium tracking-wide select-none text-base relative inline-flex items-center justify-center cursor-pointer h-12 border-2 border-solid py-0 px-3 rounded-md overflow-hidden z-10 outline-0 bg-blue-500 text-white border-blue-500"
                 >
                   Fight!
                 </button>
               )}
 
               <PokemonCard
-                pokemon={pokemon2}
+                pokemon={player2Pokemon}
                 hp={pokemon2Hp}
-                currentHp={pokemon2CurrentHp}
-                moves={pokemon2Moves}
+                currentHp={player2PokemonCurrentHp}
+                moves={player2PokemonMoves}
                 setSelectedMove={setSelectedMove2}
+                setSelectedPokemon={handlePokemonChange2}
                 isTurn={currentTurn === "pokemon2"}
+                pokemonList={pokemonList}
               />
             </div>
           ) : (
             // If the battle hasn't started, render a "Start Battle" button
-            <button onClick={() => setBattleStarted(true)}>Start Battle</button>
+            <button
+              onClick={() => setBattleStarted(true)}
+              className="lg:my-4 group font-medium tracking-wide select-none text-base relative inline-flex items-center justify-center cursor-pointer h-12 border-2 border-solid py-0 px-3 rounded-md overflow-hidden z-10 outline-0 bg-blue-500 text-white border-blue-500"
+            >
+              Start Battle
+            </button>
           )}
         </div>
       </main>
