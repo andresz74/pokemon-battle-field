@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PokemonMove } from "@/models";
+import { Pokemon, PokemonMove } from "@/models";
 
 interface RoomPlayerState {
   id: string;
   name: string;
   slot: "pokemon1" | "pokemon2";
-  pokemon: any;
+  pokemon: Pokemon | null;
   pokemonUrl: string | null;
   moves: PokemonMove[];
   selectedMoveIndex: number | null;

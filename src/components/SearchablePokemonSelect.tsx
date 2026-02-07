@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { PokemonListItem } from "@/models";
 
 interface SearchablePokemonSelectProps {
@@ -14,19 +14,16 @@ export const SearchablePokemonSelect: React.FC<SearchablePokemonSelectProps> = (
   disabled = false,
   onSelectPokemon,
 }) => {
-  const [query, setQuery] = useState(selectedName ?? "");
+  const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    setQuery(selectedName ?? "");
-  }, [selectedName]);
+  const displayValue = open ? query : selectedName ?? query;
 
   const filteredPokemon = useMemo(() => {
-    if (!query.trim()) {
+    const normalized = query.toLowerCase().trim();
+    if (!normalized) {
       return pokemonList.slice(0, 80);
     }
 
-    const normalized = query.toLowerCase().trim();
     return pokemonList
       .filter((pokemon) => pokemon.name.toLowerCase().includes(normalized))
       .slice(0, 80);
@@ -37,7 +34,7 @@ export const SearchablePokemonSelect: React.FC<SearchablePokemonSelectProps> = (
       return;
     }
     setOpen(true);
-    if (selectedName && query.toLowerCase() === selectedName.toLowerCase()) {
+    if (selectedName && displayValue.toLowerCase() === selectedName.toLowerCase()) {
       setQuery("");
     }
   };
@@ -45,9 +42,6 @@ export const SearchablePokemonSelect: React.FC<SearchablePokemonSelectProps> = (
   const handleBlur = () => {
     window.setTimeout(() => {
       setOpen(false);
-      if (!query.trim() && selectedName) {
-        setQuery(selectedName);
-      }
     }, 120);
   };
 
@@ -55,7 +49,7 @@ export const SearchablePokemonSelect: React.FC<SearchablePokemonSelectProps> = (
     <div className="pokemon-combobox-wrap">
       <input
         className="battle-select pokemon-combobox-input"
-        value={query}
+        value={displayValue}
         onChange={(event) => {
           if (disabled) {
             return;
