@@ -2,28 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
-@import 'pokemon.css';
+@import "pokemon.css";
+
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --sc-bg: #f2f4f7;
+  --sc-bg-soft: #e9edf3;
+  --sc-surface: #ffffff;
+  --sc-border: #d0d7e2;
+  --sc-border-strong: #b9c3d3;
+  --sc-text: #101828;
+  --sc-text-muted: #667085;
+  --sc-primary: #121f3d;
+  --sc-primary-strong: #0a1328;
+  --sc-accent: #243b6b;
+  --sc-success: #1f7a45;
+  --sc-danger: #b42318;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
-  /* color: rgb(var(--foreground-rgb)); */
-  /* background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb)); */
-    background-color: #f5f5f5;
+  margin: 0;
+  color: var(--sc-text);
+  font-family: "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", sans-serif;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(36, 59, 107, 0.1), transparent 28%),
+    radial-gradient(circle at 86% 84%, rgba(18, 31, 61, 0.12), transparent 24%),
+    linear-gradient(180deg, var(--sc-bg) 0%, var(--sc-bg-soft) 100%);
+}
+
+.app-root {
+  min-height: 100vh;
+  padding: 24px 18px 40px;
+}
+
+@media (min-width: 1024px) {
+  .app-root {
+    padding: 44px 40px 56px;
+  }
 }

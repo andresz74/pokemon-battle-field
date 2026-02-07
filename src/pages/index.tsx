@@ -1,13 +1,8 @@
-import { Inter } from "next/font/google";
-import BattleField from './BattleField';
-
-const inter = Inter({ subsets: ["latin"] });
+import BattleField from "./BattleField";
 
 export default function Home() {
   return (
-    <main
-      className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
-    >
+    <main className="app-root">
       <BattleField />
     </main>
   );
