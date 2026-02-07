@@ -182,7 +182,16 @@ async function writeRoom(room: Room): Promise<void> {
 
   const kv = await getKvNamespace();
   if (kv) {
-    await kv.put(`room:${room.id}`, JSON.stringify(room));
+    try {
+      await kv.put(`room:${room.id}`, JSON.stringify(room));
+    } catch (error) {
+      const message = (error as Error).message ?? "";
+      if (message.includes("KV put() limit exceeded for the day")) {
+        // Keep the current isolate functional when the account hits KV daily limits.
+        return;
+      }
+      throw error;
+    }
   }
 }
 
@@ -260,12 +269,19 @@ async function maybeAdvanceCountdown(room: Room): Promise<boolean> {
   const elapsedSeconds = Math.floor(elapsedMs / 1000);
   const remaining = Math.max(0, 3 - elapsedSeconds);
 
-  room.countdown = remaining;
-  room.updatedAt = now();
-  changed = true;
+  if (room.countdown !== remaining) {
+    room.countdown = remaining;
+    room.updatedAt = now();
+    changed = true;
+  }
 
   if (remaining > 0) {
-    room.battleMessage = `Round starts in ${remaining}...`;
+    const nextMessage = `Round starts in ${remaining}...`;
+    if (room.battleMessage !== nextMessage) {
+      room.battleMessage = nextMessage;
+      room.updatedAt = now();
+      changed = true;
+    }
     return changed;
   }
 
