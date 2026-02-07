@@ -44,6 +44,7 @@ interface Room {
   winnerName: string | null;
   phase: RoomPhase;
   countdown: number | null;
+  countdownStartedAt: number | null;
   locked: {
     pokemon1: boolean;
     pokemon2: boolean;
@@ -52,22 +53,19 @@ interface Room {
 
 type RoomStoreGlobal = typeof globalThis & {
   __POKEMON_ROOM_STORE__?: Map<string, Room>;
-  __POKEMON_ROOM_TIMERS__?: Map<string, ReturnType<typeof setTimeout>>;
+};
+
+type KVNamespaceLike = {
+  get: (key: string, options?: "text" | "json") => Promise<unknown>;
+  put: (key: string, value: string) => Promise<void>;
 };
 
 const globalRoomStore = globalThis as RoomStoreGlobal;
 if (!globalRoomStore.__POKEMON_ROOM_STORE__) {
   globalRoomStore.__POKEMON_ROOM_STORE__ = new Map<string, Room>();
 }
-if (!globalRoomStore.__POKEMON_ROOM_TIMERS__) {
-  globalRoomStore.__POKEMON_ROOM_TIMERS__ = new Map<
-    string,
-    ReturnType<typeof setTimeout>
-  >();
-}
 
 const rooms = globalRoomStore.__POKEMON_ROOM_STORE__;
-const roomTimers = globalRoomStore.__POKEMON_ROOM_TIMERS__;
 
 function now() {
   return Date.now();
@@ -96,25 +94,25 @@ function createPlayer(name: string, slot: Slot): RoomPlayer {
   };
 }
 
-function toPublicState(room: Room) {
-  const normalizePlayer = (player: RoomPlayer | null) => {
-    if (!player) {
-      return null;
-    }
+function normalizePlayer(player: RoomPlayer | null) {
+  if (!player) {
+    return null;
+  }
 
-    return {
-      id: player.id,
-      name: player.name,
-      slot: player.slot,
-      pokemon: player.pokemon,
-      pokemonUrl: player.pokemonUrl,
-      moves: player.moves,
-      selectedMoveIndex: player.selectedMoveIndex,
-      currentHp: player.currentHp,
-      maxHp: player.maxHp,
-    };
+  return {
+    id: player.id,
+    name: player.name,
+    slot: player.slot,
+    pokemon: player.pokemon,
+    pokemonUrl: player.pokemonUrl,
+    moves: player.moves,
+    selectedMoveIndex: player.selectedMoveIndex,
+    currentHp: player.currentHp,
+    maxHp: player.maxHp,
   };
+}
 
+function toPublicState(room: Room) {
   return {
     roomId: room.id,
     battleStarted: room.battleStarted,
@@ -146,20 +144,54 @@ function getPlayer(room: Room, playerId: string): RoomPlayer | null {
   return null;
 }
 
-function requireRoom(roomId: string): Room {
-  const room = rooms.get(roomId);
+async function getKvNamespace(): Promise<KVNamespaceLike | null> {
+  try {
+    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+    const context = await getCloudflareContext({ async: true });
+    const maybeKv = (context?.env as Record<string, unknown> | undefined)?.ROOMS_KV;
+
+    if (
+      maybeKv &&
+      typeof maybeKv === "object" &&
+      typeof (maybeKv as KVNamespaceLike).get === "function" &&
+      typeof (maybeKv as KVNamespaceLike).put === "function"
+    ) {
+      return maybeKv as KVNamespaceLike;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function readRoom(roomId: string): Promise<Room | null> {
+  const kv = await getKvNamespace();
+  if (kv) {
+    const raw = (await kv.get(`room:${roomId}`, "json")) as Room | null;
+    if (raw) {
+      return raw;
+    }
+  }
+
+  return rooms.get(roomId) ?? null;
+}
+
+async function writeRoom(room: Room): Promise<void> {
+  rooms.set(room.id, room);
+
+  const kv = await getKvNamespace();
+  if (kv) {
+    await kv.put(`room:${room.id}`, JSON.stringify(room));
+  }
+}
+
+async function requireRoom(roomId: string): Promise<Room> {
+  const room = await readRoom(roomId);
   if (!room) {
     throw new Error("Room not found");
   }
   return room;
-}
-
-function clearTimer(roomId: string) {
-  const timer = roomTimers.get(roomId);
-  if (timer) {
-    clearTimeout(timer);
-    roomTimers.delete(roomId);
-  }
 }
 
 async function resolveRound(room: Room) {
@@ -217,56 +249,42 @@ async function resolveRound(room: Room) {
   }
 }
 
-function scheduleCountdown(roomId: string) {
-  clearTimer(roomId);
+async function maybeAdvanceCountdown(room: Room): Promise<void> {
+  if (room.phase !== "countdown" || !room.countdownStartedAt) {
+    return;
+  }
 
-  const tick = async () => {
-    const room = rooms.get(roomId);
-    if (!room) {
-      clearTimer(roomId);
-      return;
-    }
+  const elapsedMs = now() - room.countdownStartedAt;
+  const elapsedSeconds = Math.floor(elapsedMs / 1000);
+  const remaining = Math.max(0, 3 - elapsedSeconds);
 
-    if (room.phase !== "countdown") {
-      clearTimer(roomId);
-      return;
-    }
+  room.countdown = remaining;
+  room.updatedAt = now();
 
-    const currentCount = room.countdown ?? 0;
-    if (currentCount > 1) {
-      room.countdown = currentCount - 1;
-      room.battleMessage = `Round starts in ${room.countdown}...`;
-      room.updatedAt = now();
-      const timer = setTimeout(tick, 1000);
-      roomTimers.set(roomId, timer);
-      return;
-    }
+  if (remaining > 0) {
+    room.battleMessage = `Round starts in ${remaining}...`;
+    return;
+  }
 
-    room.phase = "resolving";
-    room.countdown = 0;
-    room.battleMessage = "Resolving round...";
-    room.updatedAt = now();
+  room.phase = "resolving";
+  room.battleMessage = "Resolving round...";
 
-    try {
-      await resolveRound(room);
-      if (!room.gameOver) {
-        room.phase = "selecting";
-        room.battleMessage = `${room.battleMessage} Choose next moves and lock in.`;
-      }
-    } catch (error) {
+  try {
+    await resolveRound(room);
+    if (!room.gameOver) {
       room.phase = "selecting";
-      room.battleMessage = `Round failed: ${(error as Error).message}`;
-    } finally {
-      room.locked.pokemon1 = false;
-      room.locked.pokemon2 = false;
-      room.countdown = null;
-      room.updatedAt = now();
-      clearTimer(roomId);
+      room.battleMessage = `${room.battleMessage} Choose next moves and lock in.`;
     }
-  };
-
-  const timer = setTimeout(tick, 1000);
-  roomTimers.set(roomId, timer);
+  } catch (error) {
+    room.phase = "selecting";
+    room.battleMessage = `Round failed: ${(error as Error).message}`;
+  } finally {
+    room.locked.pokemon1 = false;
+    room.locked.pokemon2 = false;
+    room.countdown = null;
+    room.countdownStartedAt = null;
+    room.updatedAt = now();
+  }
 }
 
 async function setPlayerPokemon(room: Room, player: RoomPlayer, pokemonUrl: string) {
@@ -292,13 +310,15 @@ async function setPlayerPokemon(room: Room, player: RoomPlayer, pokemonUrl: stri
     room.phase = "selecting";
     room.battleMessage = "Both trainers selected a pokemon. Select your move and lock in.";
     room.roundOrderText = "Round order: Trainer One acts first on tie-break.";
+    room.countdown = null;
+    room.countdownStartedAt = null;
   }
 }
 
 export const roomStore = {
-  createRoom(playerName: string) {
+  async createRoom(playerName: string) {
     let id = generateId(6);
-    while (rooms.has(id)) {
+    while (await readRoom(id)) {
       id = generateId(6);
     }
 
@@ -318,13 +338,14 @@ export const roomStore = {
       winnerName: null,
       phase: "lobby",
       countdown: null,
+      countdownStartedAt: null,
       locked: {
         pokemon1: false,
         pokemon2: false,
       },
     };
 
-    rooms.set(id, room);
+    await writeRoom(room);
 
     const firstPlayer = room.players.pokemon1;
     if (!firstPlayer) {
@@ -339,8 +360,10 @@ export const roomStore = {
     };
   },
 
-  joinRoom(roomId: string, playerName: string) {
-    const room = requireRoom(roomId);
+  async joinRoom(roomId: string, playerName: string) {
+    const room = await requireRoom(roomId);
+    await maybeAdvanceCountdown(room);
+
     if (room.players.pokemon2) {
       throw new Error("Room is full");
     }
@@ -350,6 +373,8 @@ export const roomStore = {
     room.updatedAt = now();
     room.battleMessage = "Both trainers connected. Select your pokemon.";
 
+    await writeRoom(room);
+
     return {
       roomId,
       playerId: room.players.pokemon2.id,
@@ -358,13 +383,17 @@ export const roomStore = {
     };
   },
 
-  getState(roomId: string) {
-    const room = requireRoom(roomId);
+  async getState(roomId: string) {
+    const room = await requireRoom(roomId);
+    await maybeAdvanceCountdown(room);
+    await writeRoom(room);
     return toPublicState(room);
   },
 
   async selectPokemon(roomId: string, playerId: string, pokemonUrl: string) {
-    const room = requireRoom(roomId);
+    const room = await requireRoom(roomId);
+    await maybeAdvanceCountdown(room);
+
     const player = getPlayer(room, playerId);
     if (!player) {
       throw new Error("Player not in room");
@@ -376,11 +405,14 @@ export const roomStore = {
 
     await setPlayerPokemon(room, player, pokemonUrl);
     room.updatedAt = now();
+    await writeRoom(room);
     return toPublicState(room);
   },
 
-  selectMove(roomId: string, playerId: string, moveIndex: number | null) {
-    const room = requireRoom(roomId);
+  async selectMove(roomId: string, playerId: string, moveIndex: number | null) {
+    const room = await requireRoom(roomId);
+    await maybeAdvanceCountdown(room);
+
     const player = getPlayer(room, playerId);
     if (!player) {
       throw new Error("Player not in room");
@@ -403,11 +435,14 @@ export const roomStore = {
     }
 
     room.updatedAt = now();
+    await writeRoom(room);
     return toPublicState(room);
   },
 
-  lockMove(roomId: string, playerId: string) {
-    const room = requireRoom(roomId);
+  async lockMove(roomId: string, playerId: string) {
+    const room = await requireRoom(roomId);
+    await maybeAdvanceCountdown(room);
+
     const player = getPlayer(room, playerId);
     if (!player) {
       throw new Error("Player not in room");
@@ -430,25 +465,26 @@ export const roomStore = {
     if (room.locked.pokemon1 && room.locked.pokemon2) {
       room.phase = "countdown";
       room.countdown = 3;
+      room.countdownStartedAt = now();
       room.battleMessage = "Both moves locked. Round starts in 3...";
-      scheduleCountdown(room.id);
     } else {
       room.phase = "selecting";
       room.battleMessage = `${player.name} locked a move. Waiting for opponent.`;
     }
 
     room.updatedAt = now();
+    await writeRoom(room);
     return toPublicState(room);
   },
 
-  restart(roomId: string, playerId: string) {
-    const room = requireRoom(roomId);
+  async restart(roomId: string, playerId: string) {
+    const room = await requireRoom(roomId);
+    await maybeAdvanceCountdown(room);
+
     const player = getPlayer(room, playerId);
     if (!player) {
       throw new Error("Player not in room");
     }
-
-    clearTimer(room.id);
 
     const resetPlayer = (slotPlayer: RoomPlayer | null) => {
       if (!slotPlayer) {
@@ -471,11 +507,14 @@ export const roomStore = {
     room.winnerName = null;
     room.phase = "lobby";
     room.countdown = null;
+    room.countdownStartedAt = null;
     room.locked.pokemon1 = false;
     room.locked.pokemon2 = false;
     room.roundOrderText = "Round order: Trainer One acts first on tie-break.";
     room.battleMessage = "Battle restarted. Select pokemon again.";
     room.updatedAt = now();
+
+    await writeRoom(room);
     return toPublicState(room);
   },
 };

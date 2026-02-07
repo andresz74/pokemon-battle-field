@@ -20,11 +20,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } else if (action === "select_move") {
       const rawMoveIndex = req.body?.moveIndex;
       const moveIndex = rawMoveIndex === null ? null : Number(rawMoveIndex);
-      state = roomStore.selectMove(roomId, playerId, Number.isNaN(moveIndex as number) ? null : moveIndex);
+      state = await roomStore.selectMove(
+        roomId,
+        playerId,
+        Number.isNaN(moveIndex as number) ? null : moveIndex
+      );
     } else if (action === "lock_move") {
-      state = roomStore.lockMove(roomId, playerId);
+      state = await roomStore.lockMove(roomId, playerId);
     } else if (action === "restart") {
-      state = roomStore.restart(roomId, playerId);
+      state = await roomStore.restart(roomId, playerId);
     } else {
       throw new Error("Invalid action");
     }
