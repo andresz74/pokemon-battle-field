@@ -249,9 +249,11 @@ async function resolveRound(room: Room) {
   }
 }
 
-async function maybeAdvanceCountdown(room: Room): Promise<void> {
+async function maybeAdvanceCountdown(room: Room): Promise<boolean> {
+  let changed = false;
+
   if (room.phase !== "countdown" || !room.countdownStartedAt) {
-    return;
+    return changed;
   }
 
   const elapsedMs = now() - room.countdownStartedAt;
@@ -260,14 +262,16 @@ async function maybeAdvanceCountdown(room: Room): Promise<void> {
 
   room.countdown = remaining;
   room.updatedAt = now();
+  changed = true;
 
   if (remaining > 0) {
     room.battleMessage = `Round starts in ${remaining}...`;
-    return;
+    return changed;
   }
 
   room.phase = "resolving";
   room.battleMessage = "Resolving round...";
+  changed = true;
 
   try {
     await resolveRound(room);
@@ -284,7 +288,10 @@ async function maybeAdvanceCountdown(room: Room): Promise<void> {
     room.countdown = null;
     room.countdownStartedAt = null;
     room.updatedAt = now();
+    changed = true;
   }
+
+  return changed;
 }
 
 async function setPlayerPokemon(room: Room, player: RoomPlayer, pokemonUrl: string) {
@@ -385,8 +392,10 @@ export const roomStore = {
 
   async getState(roomId: string) {
     const room = await requireRoom(roomId);
-    await maybeAdvanceCountdown(room);
-    await writeRoom(room);
+    const changed = await maybeAdvanceCountdown(room);
+    if (changed) {
+      await writeRoom(room);
+    }
     return toPublicState(room);
   },
 
