@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { roomStore } from "@/server/roomStore";
+import { roomGateway } from "@/server/roomDoClient";
 
 type Action = "select_pokemon" | "select_move" | "lock_move" | "restart";
 
@@ -14,24 +14,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const playerId = String(req.body?.playerId ?? "");
     const action = String(req.body?.action ?? "") as Action;
 
-    let state;
-    if (action === "select_pokemon") {
-      state = await roomStore.selectPokemon(roomId, playerId, String(req.body?.pokemonUrl ?? ""));
-    } else if (action === "select_move") {
-      const rawMoveIndex = req.body?.moveIndex;
-      const moveIndex = rawMoveIndex === null ? null : Number(rawMoveIndex);
-      state = await roomStore.selectMove(
-        roomId,
-        playerId,
-        Number.isNaN(moveIndex as number) ? null : moveIndex
-      );
-    } else if (action === "lock_move") {
-      state = await roomStore.lockMove(roomId, playerId);
-    } else if (action === "restart") {
-      state = await roomStore.restart(roomId, playerId);
-    } else {
+    if (action !== "select_pokemon" && action !== "select_move" && action !== "lock_move" && action !== "restart") {
       throw new Error("Invalid action");
     }
+
+    const rawMoveIndex = req.body?.moveIndex;
+    const moveIndex = rawMoveIndex === null ? null : Number(rawMoveIndex);
+    const state = await roomGateway.action(roomId, {
+      playerId,
+      action,
+      pokemonUrl: String(req.body?.pokemonUrl ?? ""),
+      moveIndex: Number.isNaN(moveIndex as number) ? null : moveIndex,
+    });
 
     res.status(200).json(state);
   } catch (error) {

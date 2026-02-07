@@ -1,18 +1,29 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "pokemon-battle-field",
-  "main": ".open-next/worker.js",
-  "compatibility_date": "2026-02-07",
-  "compatibility_flags": ["nodejs_compat"],
-  "assets": {
-    "binding": "ASSETS",
-    "directory": ".open-next/assets"
-  },
-  "kv_namespaces": [
-    {
-      "binding": "ROOMS_KV",
-      "id": "REPLACE_WITH_ROOMS_KV_ID",
-      "preview_id": "REPLACE_WITH_ROOMS_KV_PREVIEW_ID"
-    }
-  ]
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "pokemon-battle-field",
+	"main": "worker.mjs",
+	"compatibility_date": "2026-02-07",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".open-next/assets"
+	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "ROOM_DO",
+				"class_name": "RoomDurableObject"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "room-do-v1",
+			"new_sqlite_classes": [
+				"RoomDurableObject"
+			]
+		}
+	]
 }
