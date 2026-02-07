@@ -1,4 +1,3 @@
-import axios from "axios";
 import { Move, Pokemon, PokemonListItem, Type } from "@/models";
 
 const POKEMON_LIST_URL = "https://pokeapi.co/api/v2/pokemon?limit=1280";
@@ -6,14 +5,21 @@ const POKEMON_LIST_URL = "https://pokeapi.co/api/v2/pokemon?limit=1280";
 const moveCache = new Map<string, Move>();
 const typeCache = new Map<string, Type>();
 
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Request failed (${res.status}) for ${url}`);
+  }
+  return (await res.json()) as T;
+}
+
 export const fetchPokemonList = async (): Promise<PokemonListItem[]> => {
-  const res = await axios.get(POKEMON_LIST_URL);
-  return res.data.results;
+  const data = await fetchJson<{ results: PokemonListItem[] }>(POKEMON_LIST_URL);
+  return data.results;
 };
 
 export const fetchPokemonByUrl = async (url: string): Promise<Pokemon> => {
-  const res = await axios.get(url);
-  return res.data;
+  return fetchJson<Pokemon>(url);
 };
 
 export const fetchMoveByUrl = async (url: string): Promise<Move> => {
@@ -21,9 +27,9 @@ export const fetchMoveByUrl = async (url: string): Promise<Move> => {
     return moveCache.get(url) as Move;
   }
 
-  const res = await axios.get(url);
-  moveCache.set(url, res.data);
-  return res.data;
+  const move = await fetchJson<Move>(url);
+  moveCache.set(url, move);
+  return move;
 };
 
 export const fetchTypeByName = async (name: string): Promise<Type> => {
@@ -32,7 +38,7 @@ export const fetchTypeByName = async (name: string): Promise<Type> => {
     return typeCache.get(key) as Type;
   }
 
-  const res = await axios.get(`https://pokeapi.co/api/v2/type/${key}`);
-  typeCache.set(key, res.data);
-  return res.data;
+  const type = await fetchJson<Type>(`https://pokeapi.co/api/v2/type/${key}`);
+  typeCache.set(key, type);
+  return type;
 };
