@@ -10,6 +10,12 @@
 		"binding": "ASSETS",
 		"directory": ".open-next/assets"
 	},
+	"routes": [
+		{
+			"pattern": "pokemon.dontmissthis.click",
+			"custom_domain": true
+		}
+	],
 	"durable_objects": {
 		"bindings": [
 			{
