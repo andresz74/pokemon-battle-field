@@ -23,6 +23,21 @@ function generateRoomId(length = 6): string {
 }
 
 async function getRoomDoNamespace(): Promise<DurableObjectNamespaceLike | null> {
+  const fromGlobalContext = (
+    globalThis as unknown as Record<PropertyKey, unknown>
+  )[Symbol.for("__cloudflare-context__")] as
+    | { env?: Record<string, unknown> }
+    | undefined;
+  const globalNs = fromGlobalContext?.env?.ROOM_DO;
+  if (
+    globalNs &&
+    typeof globalNs === "object" &&
+    typeof (globalNs as DurableObjectNamespaceLike).idFromName === "function" &&
+    typeof (globalNs as DurableObjectNamespaceLike).get === "function"
+  ) {
+    return globalNs as DurableObjectNamespaceLike;
+  }
+
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");
     const context = await getCloudflareContext({ async: true });
@@ -69,6 +84,9 @@ export const roomGateway = {
   async createRoom(playerName: string) {
     const namespace = await getRoomDoNamespace();
     if (!namespace) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("ROOM_DO binding is not available in runtime");
+      }
       return roomStore.createRoom(playerName);
     }
 
@@ -98,6 +116,9 @@ export const roomGateway = {
   async joinRoom(roomId: string, playerName: string) {
     const namespace = await getRoomDoNamespace();
     if (!namespace) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("ROOM_DO binding is not available in runtime");
+      }
       return roomStore.joinRoom(roomId, playerName);
     }
 
@@ -116,6 +137,9 @@ export const roomGateway = {
   async getState(roomId: string) {
     const namespace = await getRoomDoNamespace();
     if (!namespace) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("ROOM_DO binding is not available in runtime");
+      }
       return roomStore.getState(roomId);
     }
 
@@ -133,6 +157,9 @@ export const roomGateway = {
   ) {
     const namespace = await getRoomDoNamespace();
     if (!namespace) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("ROOM_DO binding is not available in runtime");
+      }
       if (payload.action === "select_pokemon") {
         return roomStore.selectPokemon(roomId, payload.playerId, String(payload.pokemonUrl ?? ""));
       }
