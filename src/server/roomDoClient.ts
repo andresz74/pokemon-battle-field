@@ -83,7 +83,7 @@ export const roomGateway = {
         }>(roomId, "/create", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ playerName }),
+          body: JSON.stringify({ playerName, roomId }),
         });
       } catch (error) {
         if ((error as Error).message !== "Room already exists") {

@@ -507,10 +507,13 @@ export class RoomDurableObject {
     try {
       const url = new URL(request.url);
       const pathname = url.pathname;
-      const roomId = this.state.id.toString().split(":").pop() ?? "ROOM";
 
       if (request.method === "POST" && pathname === "/create") {
-        const body = (await request.json()) as { playerName?: string };
+        const body = (await request.json()) as { playerName?: string; roomId?: string };
+        const roomId = String(body.roomId ?? "").toUpperCase().trim();
+        if (!roomId) {
+          throw new Error("roomId is required");
+        }
         const result = await this.create(body.playerName ?? "Trainer One", roomId);
         return jsonResponse(result);
       }
